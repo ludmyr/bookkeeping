@@ -27,6 +27,33 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+
+app.post('/upload', upload.single('file'), async (req, res) => {
+  const name = req.body.name?.trim();
+  const originalFilePath = req.file?.path;
+
+  if (!name) {
+    if (originalFilePath) fs.unlinkSync(originalFilePath);
+    return res.status(400).json({ message: 'שגיאה: חסר שם לקובץ' });
+  }
+
+  const ext = path.extname(req.file.originalname);
+  const filePath = `uploads/${name}${ext}`;
+
+  const existsByName = await Item.findOne({ name });
+  if (existsByName) {
+    if (originalFilePath) fs.unlinkSync(originalFilePath);
+    return res.status(400).json({ message: 'שגיאה: שם קובץ כבר קיים!' });
+  }
+
+  fs.renameSync(originalFilePath, filePath);
+
+  const newItem = new Item({ name, filePath });
+  await newItem.save();
+
+  res.json({ message: '✅ הקובץ הועלה בהצלחה!' });
+});
+
 app.get('/items', async (req, res) => {
   const items = await Item.find();
   res.json(items);
